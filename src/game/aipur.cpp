@@ -67,7 +67,7 @@ void CheckAdv(char plr);
  */
 void DrawStatistics(char Win)
 {
-    char AImg[7] = {8, 9, 10, 11, 13, 14, 0};
+//    char AImg[7] = {8, 9, 10, 11, 13, 14, 0};
     int starty, qty, i;
     helpText = "i145";
     keyHelpText = "k045";
@@ -462,7 +462,7 @@ void AIRandomizeNauts()
 void SelectBest(char plr, int pos)
 {
     int count = 0, now, MaxMen = 0, Index, AIMaxSel = 0, i, j;
-    FILE *fin;
+//    FILE *fin;
     char tot, done;
     struct BuzzData *pData = &Data->P[plr];
 

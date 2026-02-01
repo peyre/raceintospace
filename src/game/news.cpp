@@ -142,7 +142,7 @@ void GoNews(char plr)
 // Open News Constructs a complete event array.
 void OpenNews(char plr, char *buf, int bud)
 {
-    int size = 250;
+//    int size = 250;
     //size = (plr == 0) ? 232 : 177;
     
     LoadEventData(plr);
@@ -211,7 +211,7 @@ void OpenNews(char plr, char *buf, int bud)
         char old[120];
 
         if (messages != NULL) {
-            fread(&old, sizeof(old), 1, messages);
+//            fread(&old, sizeof(old), 1, messages);
 
             if (old[0] != 0x00) {
                 if (Option == 0) {

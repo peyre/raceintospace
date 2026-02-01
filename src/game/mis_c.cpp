@@ -800,7 +800,7 @@ void DoPack(char plr, FILE *ffin, char mode, char *cde, char *fName,
         while (attempt < NORM_TABLE && attempt < Mob.size()) {
             strncpy(Val2, &Mob[attempt].Code[0],
                     sizeof(Mob[attempt].Code));
-            int maxlength = MIN(strlen(Val2), sizeof(Val2));
+//            int maxlength = MIN(strlen(Val2), sizeof(Val2));
 
             if (strncmp(Val1, Val2, strlen(Val2)) == 0) {
                 break;
@@ -832,9 +832,9 @@ void DoPack(char plr, FILE *ffin, char mode, char *cde, char *fName,
     fseek(ffin, location_in_file, SEEK_SET);
     {
         display::AutoPal p(display::graphics.legacyScreen());
-        fread(&p.pal[off * 3], 48, 1, ffin);
+//        fread(&p.pal[off * 3], 48, 1, ffin);
     }
-    fread(boob.pixels(), 1564, 1, ffin);
+//    fread(boob.pixels(), 1564, 1, ffin);
 
     for (int i = 0; i < 782; i++) {
         bot[i + 782] = ((bot[i] & 0xF0F0) >> 4);
@@ -894,7 +894,7 @@ void GuyDisp(int xa, int ya, Astros* Guy)
  * \param text   description of the problem encountered.
  * \return  0 to continue the mission, 1 to scrub.
  */
-char FailureMode(char plr, int prelim, const char* text)
+char FailureMode(char plr, int prelim, char *text)
 {
     display::LegacySurface saveScreen(display::graphics.screen()->width(), display::graphics.screen()->height());
     FadeOut(2, 10, 0, 0);
@@ -1433,9 +1433,9 @@ int ImportInfin(FILE* fin, Infin& target)
     //     char Code[9], Qty;
     //     int16_t List[10];
     // };
-    fread(&target.Code[0], sizeof(target.Code), 1, fin);
-    fread(&target.Qty, sizeof(target.Qty), 1, fin);
-    fread(&target.List[0], sizeof(target.List), 1, fin);
+//    fread(&target.Code[0], sizeof(target.Code), 1, fin);
+//    fread(&target.Qty, sizeof(target.Qty), 1, fin);
+//    fread(&target.List[0], sizeof(target.List), 1, fin);
 
     for (int i = 0; i < 10; i++) {
         Swap16bit(target.List[i]);
@@ -1458,8 +1458,8 @@ int ImportOF(FILE* fin, OF& target)
     //     char Name[8];
     //     int16_t idx;
     // };
-    fread(&target.Name[0], sizeof(target.Name), 1, fin);
-    fread(&target.idx, sizeof(target.idx), 1, fin);
+//    fread(&target.Name[0], sizeof(target.Name), 1, fin);
+//    fread(&target.idx, sizeof(target.idx), 1, fin);
     Swap16bit(target.idx);
     return 0;
 }

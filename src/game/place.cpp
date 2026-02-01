@@ -1063,9 +1063,9 @@ void Draw_Mis_Stats(int plr, int index, int mode)
                 tin = sOpen("REPL.TMP", "rb", FT_SAVE);
                 {
                     display::AutoPal p(display::graphics.legacyScreen());
-                    fread(p.pal, 768, 1, tin);
+//                    fread(p.pal, 768, 1, tin);
                 }
-                fread(display::graphics.legacyScreen()->pixels(), 64000, 1, tin);
+//                fread(display::graphics.legacyScreen()->pixels(), 64000, 1, tin);
                 fclose(tin);
                 FadeIn(2, 10, 0, 0);
                 key = 0;
