@@ -390,7 +390,7 @@ void FileAccess(char mode)
 {
     char sc = 0;
     int i, now, done, BarB, temp;
-    FILE *fout;
+//    FILE *fout;
     SaveGameType saveType = SAVEGAME_Normal;
 
     //sp. case -> no regular save off mail/modem game
@@ -925,7 +925,7 @@ SaveGameType GetSaveType(const SaveFileHdr &header)
  */
 void autosave_game(const char *name)
 {
-    FILE *outf;
+//    FILE *outf;
     SaveFileHdr hdr;
 
     memset(&hdr, 0, sizeof hdr);
@@ -1067,7 +1067,7 @@ void FileText(const char *name)
         return;
     }
 
-    fread(&header, sizeof(header), 1, fin);
+//    fread(&header, sizeof(header), 1, fin);
 
     fclose(fin);
 
@@ -1620,12 +1620,12 @@ int FutureCheck(char plr, char type)
  */
 void LoadGame(const char *filename)
 {
-    LEGACY_REPLAY *load_buffer = NULL;
+//    LEGACY_REPLAY *load_buffer = NULL;
     SaveFileHdr header;
     unsigned char magic[2];
     unsigned char *cbuf, *buf;
     uLongf usize = 0;
-    int i, ok, offset;
+    int i, ok;
 
     FILE *fin = sOpen(filename, "rb", FT_SAVE);
 
@@ -1842,7 +1842,7 @@ char RequestX(const char *s, char md)
 void write_save_file(const char *Name, SaveFileHdr header)
 {
     FILE *fin;
-    int i, offset, size;
+    int i, size;
     long unsigned int csize;
     unsigned char *cbuf;
 
@@ -1928,7 +1928,7 @@ void write_save_file(const char *Name, SaveFileHdr header)
 int SaveGame(const std::vector<SFInfo> savegames)
 {
     int done = 0, temp, i;
-    FILE *fin;
+//    FILE *fin;
     SaveFileHdr header;
     std::string title;
 

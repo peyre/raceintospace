@@ -691,9 +691,9 @@ void Recruit(const char plr, const uint8_t pool, const uint8_t candidate)
 
 void AstSel(char plr)
 {
-    int i, j, k, BarA, BarB, MaxMen, Index, now, now2, max, change, min, count,
+    int i, BarA, BarB, MaxMen, Index, now, now2, max, min, count,
          ksel = 0;
-    FILE *fin;
+//    FILE *fin;
 
     bool femaleAstronautsAllowed =
         (options.feat_female_nauts ||

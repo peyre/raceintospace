@@ -66,7 +66,7 @@
 
 LOG_DEFAULT_CATEGORY(filesys)
 
-static DIR *save_dir;
+//static DIR *save_dir;
 
 /** used internally to find and open files */
 typedef struct file {

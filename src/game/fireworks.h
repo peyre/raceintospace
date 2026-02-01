@@ -30,9 +30,9 @@ public:
     Fireworks(int player);
     ~Fireworks();
 
+    void step();
     void advance();
     void clear();
-    void step();
 private:
     struct Burst {
         uint8_t color;
@@ -42,11 +42,11 @@ private:
     };
 
     const unsigned int mParticles;
-    const int mPlayer;
     int mBombAge;
+    const int mPlayer;
+    int mMinInitSpeed;
     int mMaxBombLife;
     int mMaxInitSpeed;
-    int mMinInitSpeed;
     Burst *mBomb;
     display::LegacySurface *mBackground;
 
