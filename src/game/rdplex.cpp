@@ -63,13 +63,13 @@ enum {
 
 
 void LoadVABPalette(char plr);
-void SRdraw_string(int x, int y, const char* text, char fgd, char bck);
+void SRdraw_string(int x, int y, char *text, char fgd, char bck);
 void DrawRD(char plr);
 void DrawCashOnHand(char plr);
 void DrawRDButtons(char plr, int maxButton = MAX_RD_TEAMS);
-void RDButTxt(int v1, int val, char plr, bool SpDModule);  //DM Screen, Nikakd, 10/8/10
+void RDButTxt(int v1, int val, char plr, char SpDModule);  //DM Screen, Nikakd, 10/8/10
 void ManSel(int activeButtonIndex, int maxAvailable = MAX_RD_TEAMS);
-int MaxTeamsNeeded(char plr, const Equipment& equip);
+int MaxTeamsNeeded(char plr, Equipment &equip);
 int MaxTeamsNeeded(char plr, int hardware, int unit);
 void ShowUnit(char hw, char un, char plr);
 void OnHand(char qty);
@@ -77,6 +77,10 @@ void DrawHPurc(char plr);
 void BuyUnit(char hw2, char un2, char plr);
 void RDHelpWarnings(int plr);
 void ShowHardwareDescription(int player, int hardware, int unit);
+int WarningLMShown;
+int WarningDMShown;
+int WarningKickerShown;
+int WarningVABShown;
 
 /* We need to mask number of rolls into R&D history for current turn
  * Max number rolled on 5 dice with mods is 5*7 = 35
@@ -93,7 +97,8 @@ enum {
  * @return number of rolls
  */
 static inline
-uint8_t decodeNumRolls(uint8_t encoded)
+uint8_t
+decodeNumRolls(uint8_t encoded)
 {
     return encoded / NUM_ROLLS_MULT;
 }
@@ -104,7 +109,8 @@ uint8_t decodeNumRolls(uint8_t encoded)
  * @return sum of dice rolls
  */
 static inline
-uint8_t decodeRollValue(uint8_t encoded)
+uint8_t
+decodeRollValue(uint8_t encoded)
 {
     return encoded % NUM_ROLLS_MULT;
 }
@@ -116,7 +122,8 @@ uint8_t decodeRollValue(uint8_t encoded)
  * @return encoded value
  */
 static inline
-uint8_t encodeRolls(uint8_t nRolls, uint8_t value)
+uint8_t
+encodeRolls(uint8_t nRolls, uint8_t value)
 {
     return nRolls * NUM_ROLLS_MULT + value;
 }
@@ -139,12 +146,13 @@ void LoadVABPalette(const char plr)
 }
 
 
-void SRdraw_string(int x, int y, const char* text, char fgd, char bck)
+void SRdraw_string(int x, int y, char *text, char fgd, char bck)
 {
     display::graphics.setForegroundColor(bck);
     draw_string(x + 1, y + 1, text);
     display::graphics.setForegroundColor(fgd);
     draw_string(x, y, text);
+    return;
 }
 
 
@@ -229,6 +237,8 @@ void DrawRD(char player_index)
     ShowUnit(hardware, unit, player_index);
     DrawRDButtons(player_index,
                   MaxTeamsNeeded(player_index, hardware, unit));
+
+    return;
 }  // End of DrawRD
 
 
@@ -280,7 +290,8 @@ void DrawRDButtons(char plr, int maxButton)
 
 
 
-void RDButTxt(int cost, int encodedRolls, char playerIndex, bool SpDModule)  //DM Screen, Nikakd, 10/8/10
+void
+RDButTxt(int cost, int encodedRolls, char playerIndex, char SpDModule)  //DM Screen, Nikakd, 10/8/10
 {
     fill_rectangle(166, 185, 314, 193, 3);
     display::graphics.setForegroundColor(1);
@@ -288,7 +299,7 @@ void RDButTxt(int cost, int encodedRolls, char playerIndex, bool SpDModule)  //D
     int diceRoll = decodeRollValue(encodedRolls);
 
     // DM Screen, Nikakd, 10/8/10
-    if (SpDModule) {
+    if (SpDModule == 1) {
         draw_string(184, 191, "CANNOT BE RESEARCHED");
         return;
     }
@@ -318,12 +329,15 @@ void RDButTxt(int cost, int encodedRolls, char playerIndex, bool SpDModule)  //D
 
 char RD(char player_index)
 {
-    short buy[4][7];
+    short roll = 0;
+    short buy[4][7], i, j, b;
     int hardware = call ? DisplayedHardware : PROBE_HARDWARE;
     int unit = call ? DisplayedUnit : PROBE_HW_ORBITAL;
 
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 7; j++) {
+    b = 0; /* XXX check uninitialized */
+
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 7; j++) {
             buy[i][j] = Data->P[player_index].Buy[i][j];
         }
     }
@@ -340,7 +354,7 @@ char RD(char player_index)
     DrawRDButtons(player_index,
                   MaxTeamsNeeded(player_index, hardware, unit));
 
-    RDButTxt(0, buy[hardware][unit], player_index, (hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE));  //DM Screen, Nikakd, 10/8/10
+    RDButTxt(b * roll, buy[hardware][unit], player_index, ((hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE) ? 1 : 0));  //DM Screen, Nikakd, 10/8/10
 
     if (buy[hardware][unit] == 0) {
         QueryUnit(hardware, unit, player_index);
@@ -366,7 +380,6 @@ char RD(char player_index)
         RDHelpWarnings(player_index);
     }
 
-    short roll = 0, b = 0;
     while (1) {
         key = 0;
         GetMouse();
@@ -385,7 +398,7 @@ char RD(char player_index)
                     ShowUnit(hardware, unit, player_index);
                     DrawRDButtons(player_index,
                                   MaxTeamsNeeded(player_index, Program));
-                    RDButTxt(b * roll, buy[hardware][unit], player_index, (hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE));  //DM Screen, Nikakd, 10/8/10
+                    RDButTxt(b * roll, buy[hardware][unit], player_index, ((hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE) ? 1 : 0));  //DM Screen, Nikakd, 10/8/10
 
                     if (buy[hardware][unit] == 0) {
                         QueryUnit(hardware, unit, player_index);
@@ -423,7 +436,7 @@ char RD(char player_index)
 
                     b = Data->P[player_index].Probe[unit].RDCost;
 
-                    RDButTxt(b * roll, buy[hardware][unit], player_index, (hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE));  //DM Screen, Nikakd, 10/8/10
+                    RDButTxt(b * roll, buy[hardware][unit], player_index, ((hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE) ? 1 : 0));  //DM Screen, Nikakd, 10/8/10
                 } else if (((x >= 83 && x <= 156 && mousebuttons > 0) || key == 'R') && hardware != ROCKET_HARDWARE) {  /* Rockets */
                     roll = 0;
                     hardware = ROCKET_HARDWARE;
@@ -445,7 +458,7 @@ char RD(char player_index)
 
                     b = Data->P[player_index].Rocket[unit].RDCost;
 
-                    RDButTxt(b * roll, buy[hardware][unit], player_index, (hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE));  //DM Screen, Nikakd, 10/8/10
+                    RDButTxt(b * roll, buy[hardware][unit], player_index, ((hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE) ? 1 : 0));  //DM Screen, Nikakd, 10/8/10
                 } else if (((x >= 164 && x <= 237 && mousebuttons > 0) || key == 'C') && hardware != MANNED_HARDWARE) {  /* Manned */
                     roll = 0;
                     hardware = MANNED_HARDWARE;
@@ -467,7 +480,7 @@ char RD(char player_index)
 
                     b = Data->P[player_index].Manned[unit].RDCost;
 
-                    RDButTxt(b * roll, buy[hardware][unit], player_index, (hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE));  //DM Screen, Nikakd, 10/8/10
+                    RDButTxt(b * roll, buy[hardware][unit], player_index, ((hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE) ? 1 : 0));  //DM Screen, Nikakd, 10/8/10
                 } else if (((x >= 245 && x <= 313 && mousebuttons > 0) || key == 'M') && hardware != MISC_HARDWARE) {  /* Misc */
                     roll = 0;
                     hardware = MISC_HARDWARE;
@@ -489,7 +502,7 @@ char RD(char player_index)
 
                     b = Data->P[player_index].Misc[unit].RDCost;
 
-                    RDButTxt(b * roll, buy[hardware][unit], player_index, (hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE));  //DM Screen, Nikakd, 10/8/10
+                    RDButTxt(b * roll, buy[hardware][unit], player_index, ((hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE) ? 1 : 0));  //DM Screen, Nikakd, 10/8/10
                 }
             } else if (((x >= 165 && x <= 315 && y >= 157 && y <= 175 && mousebuttons > 0) || (key >= '0' && key <= '5')) && buy[hardware][unit] == 0) {
                 /*  R&D Amount */
@@ -519,7 +532,7 @@ char RD(char player_index)
 
                 b = HardwareProgram(player_index, hardware, unit).RDCost;
 
-                RDButTxt(b * roll, buy[hardware][unit], player_index, (hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE));  //DM Screen, Nikakd, 10/8/10
+                RDButTxt(b * roll, buy[hardware][unit], player_index, ((hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE) ? 1 : 0));  //DM Screen, Nikakd, 10/8/10
                 ManSel(roll, MaxTeamsNeeded(player_index, hardware, unit));
                 WaitForMouseUp();
             } else if ((x >= 5 && y >= 184 && x <= 74 && y <= 194 && mousebuttons > 0) || key == LT_ARROW) {  /* LEFT ARROW */
@@ -563,7 +576,7 @@ char RD(char player_index)
                     break;
                 }
 
-                RDButTxt(b * roll, buy[hardware][unit], player_index, (hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE));  //DM Screen, Nikakd, 10/8/10
+                RDButTxt(b * roll, buy[hardware][unit], player_index, ((hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE) ? 1 : 0));  //DM Screen, Nikakd, 10/8/10
 
                 if (buy[hardware][unit] == 0) {
                     QueryUnit(hardware, unit, player_index);
@@ -619,7 +632,7 @@ char RD(char player_index)
                     break;   // DM Screen, Nikakd, 10/8/10
                 }
 
-                RDButTxt(b * roll, buy[hardware][unit], player_index, (hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE));  //DM Screen, Nikakd, 10/8/10
+                RDButTxt(b * roll, buy[hardware][unit], player_index, ((hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE) ? 1 : 0));  //DM Screen, Nikakd, 10/8/10
 
                 if (buy[hardware][unit] == 0) {
                     QueryUnit(hardware, unit, player_index);
@@ -634,7 +647,7 @@ char RD(char player_index)
                 ManSel(decodeNumRolls(buy[hardware][unit]),
                        MaxTeamsNeeded(player_index, hardware, unit));
 
-                RDButTxt(b * roll, buy[hardware][unit], player_index, (hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE));  //DM Screen, Nikakd, 10/8/10
+                RDButTxt(b * roll, buy[hardware][unit], player_index, ((hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE) ? 1 : 0));  //DM Screen, Nikakd, 10/8/10
 
                 OutBox(83, 184, 152, 194);
             } else if (((x >= 165 && y >= 184 && x <= 315 && y <= 194 && mousebuttons > 0) || key == 'S') && buy[hardware][unit] == 0
@@ -664,7 +677,7 @@ char RD(char player_index)
                                   MaxTeamsNeeded(player_index,
                                                  hardware, unit));
 
-                    RDButTxt(b * roll, buy[hardware][unit], player_index, (hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE));  //DM Screen, Nikakd, 10/8/10
+                    RDButTxt(b * roll, buy[hardware][unit], player_index, ((hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE) ? 1 : 0));  //DM Screen, Nikakd, 10/8/10
                 } else {
                     QueryUnit(hardware, unit, player_index);
                 }
@@ -672,8 +685,8 @@ char RD(char player_index)
                 InBox(245, 5, 314, 17);
                 WaitForMouseUp();
 
-                for (int i = 0; i < 4; i++) {
-                    for (int j = 0; j < 7; j++) {
+                for (i = 0; i < 4; i++) {
+                    for (j = 0; j < 7; j++) {
                         Data->P[player_index].Buy[i][j] = buy[i][j];
                     }
                 }
@@ -684,8 +697,8 @@ char RD(char player_index)
             } else if ((x >= 5 && y >= 73 && x <= 152 && y <= 83 && mousebuttons > 0) || key == 'V') {
                 InBox(5, 73, 152, 83);
 
-                for (int i = 0; i < 4; i++) {
-                    for (int j = 0; j < 7; j++) {
+                for (i = 0; i < 4; i++) {
+                    for (j = 0; j < 7; j++) {
                         Data->P[player_index].Buy[i][j] = buy[i][j];
                     }
                 }
@@ -711,8 +724,8 @@ char RD(char player_index)
                 unit = DisplayedUnit;
                 call = 0;
 
-                for (int i = 0; i < 4; i++) {
-                    for (int j = 0; j < 7; j++) {
+                for (i = 0; i < 4; i++) {
+                    for (j = 0; j < 7; j++) {
                         buy[i][j] = Data->P[player_index].Buy[i][j];
                     }
                 }
@@ -723,7 +736,7 @@ char RD(char player_index)
                 DrawRDButtons(player_index,
                               MaxTeamsNeeded(player_index,
                                              hardware, unit));
-                RDButTxt(0, buy[hardware][unit], player_index, (hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE));  //DM Screen, Nikakd, 10/8/10
+                RDButTxt(0, buy[hardware][unit], player_index, ((hardware == MISC_HARDWARE && unit == MISC_HW_DOCKING_MODULE) ? 1 : 0));  //DM Screen, Nikakd, 10/8/10
 
                 if (buy[hardware][unit] == 0) {
                     QueryUnit(hardware, unit, player_index);
@@ -815,10 +828,10 @@ void ShowHardwareDescription(int player, int hardware, int unit)
  * \param plr  the player index.
  * \param equip  the hardware program being researched.
  */
-int MaxTeamsNeeded(char plr, const Equipment& equip)
+int MaxTeamsNeeded(char plr, Equipment &equip)
 {
-    if ((plr == 0 && Data->Def.Lev1 == 2)  // no protection against overspending on highest difficulty
-        || (plr == 1 && Data->Def.Lev2 == 2)) {
+    if ((plr == 0 && Data->Def.Lev1 == 2) ||
+        (plr == 1 && Data->Def.Lev2 == 2)) {
         return MAX_RD_TEAMS;
     }
 
@@ -836,7 +849,7 @@ int MaxTeamsNeeded(char plr, const Equipment& equip)
  */
 int MaxTeamsNeeded(char plr, int hardware, int unit)
 {
-    const Equipment& equip = HardwareProgram(plr, hardware, unit);
+    Equipment &equip = HardwareProgram(plr, hardware, unit);
     return MaxTeamsNeeded(plr, equip);
 }
 
@@ -853,8 +866,8 @@ char QueryUnit(char hardware_index, char unit_index, char player_index)
     char enableButton = 0;
 
     // DM Screen, Nikakd, 10/8/10
-    if (hardware_index != MISC_HARDWARE
-        || unit_index != MISC_HW_DOCKING_MODULE) {
+    if (hardware_index != MISC_HARDWARE ||
+        unit_index != MISC_HW_DOCKING_MODULE) {
         enableButton =
             HardwareProgram(player_index, hardware_index, unit_index).Num
             != PROGRAM_NOT_STARTED;
@@ -881,7 +894,7 @@ char QueryUnit(char hardware_index, char unit_index, char player_index)
  */
 char MaxChk(char hardware_index, char unit_index, char player_index)
 {
-    const Equipment& program =
+    const Equipment &program =
         HardwareProgram(player_index, hardware_index, unit_index);
     return program.Safety < program.MaxRD;
 }
@@ -897,14 +910,16 @@ char MaxChk(char hardware_index, char unit_index, char player_index)
  * @param[in] playerIndex
  * @return encoded number of dice and sum of rolls
  */
-uint8_t RDUnit(char hardwareTypeIndex, char hardwareIndex, char nRolls, char playerIndex)
+uint8_t
+RDUnit(char hardwareTypeIndex, char hardwareIndex, char nRolls,
+       char playerIndex)
 {
     assert(hardwareTypeIndex >= PROBE_HARDWARE);
     assert(hardwareTypeIndex <= MISC_HARDWARE);
     assert(hardwareIndex >= MANNED_HW_ONE_MAN_CAPSULE);
     assert(hardwareIndex <= MANNED_HW_ONE_MAN_MODULE);
 
-    Equipment& eq = HardwareProgram(playerIndex,
+    Equipment &eq = HardwareProgram(playerIndex,
                                     hardwareTypeIndex,
                                     hardwareIndex);
     int diceRoll = 0;
@@ -932,8 +947,15 @@ uint8_t RDUnit(char hardwareTypeIndex, char hardwareIndex, char nRolls, char pla
  */
 void ShowUnit(char hw, char un, char player_index)
 {
+    char qty = 1, SCol = 0;
+    int Unit_Cost, Init_Cost;
+
+    Equipment &program = HardwareProgram(player_index, hw, un);
+
     display::graphics.setForegroundColor(1);
+
     fill_rectangle(162, 69, 318, 146, 3);
+    display::graphics.setForegroundColor(1);
     draw_string(170, 97, "INITIAL COST:");
     draw_string(170, 104, "UNIT COST:");
     draw_string(170, 118, "R&D COST PER TEAM:");
@@ -943,12 +965,12 @@ void ShowUnit(char hw, char un, char player_index)
 
 
     // Set Avoid Failure notification
-    Equipment& program = HardwareProgram(player_index, hw, un);
     if (program.SaveCard > 0) {
         IOBox(285, 70, 317, 87);
         display::graphics.setForegroundColor(11);
         draw_string(288, 77, "AVOID");
         draw_string(291, 84, "FAIL");
+        display::graphics.setForegroundColor(1);
     }
 
     if (Data->P[player_index].RD_Mods_For_Turn != 0) {
@@ -980,16 +1002,15 @@ void ShowUnit(char hw, char un, char player_index)
         draw_string(0, 0, "IX");
     }
 
-    int SCol = (program.Num < 0) ? 20 : ((program.Safety < 75) ? 8 : 16);
+    SCol = (program.Num < 0) ? 20 : ((program.Safety < 75) ? 8 : 16);
     display::graphics.setForegroundColor(SCol);
     draw_string(170, 111, "SAFETY FACTOR:");
 
     DrawCashOnHand(player_index);
     display::graphics.setForegroundColor(11);
 
-    if (player_index != 1 
-        || hw != ROCKET_HARDWARE 
-        || un != MANNED_HW_FOUR_MAN_CAPSULE) {
+    if (!(player_index == 1 && hw == ROCKET_HARDWARE &&
+          un == MANNED_HW_FOUR_MAN_CAPSULE)) {
         draw_string(170, 80, &program.Name[0]);
     }
 
@@ -1065,8 +1086,8 @@ void ShowUnit(char hw, char un, char player_index)
         break;
     }
 
-    int Init_Cost = program.InitCost;
-    int Unit_Cost = program.UnitCost;
+    Init_Cost = program.InitCost;
+    Unit_Cost = program.UnitCost;
 
     if (Data->P[player_index].TurnOnly == 3) {
         Init_Cost /= 2;
@@ -1117,7 +1138,6 @@ void ShowUnit(char hw, char un, char player_index)
         draw_number(268, 132, program.MaxPay);
     }
 
-    char qty = 1;
     if (program.Num == -1) {
         display::graphics.setForegroundColor(8);
         draw_string(170, 90, "NO PROGRAM INITIATED");
@@ -1157,6 +1177,7 @@ void OnHand(char qty)
 
     draw_string(170, 90, "UNITS ON HAND:");
     draw_number(251, 90, qty);
+    return;
 }
 
 void DrawHPurc(char player_index)
@@ -1226,6 +1247,8 @@ void DrawHPurc(char player_index)
     ShowUnit(PROBE_HARDWARE, PROBE_HW_ORBITAL, player_index);
     helpText = "i008";
     keyHelpText = "k008";
+
+    return;
 }
 
 char HPurc(char player_index)
@@ -1236,7 +1259,7 @@ char HPurc(char player_index)
     HardwareButtons hardware_buttons(30, player_index);
 
     remove_savedat("UNDO.TMP");
-    FILE* undo = sOpen("UNDO.TMP", "wb", FT_SAVE);
+    FILE *undo = sOpen("UNDO.TMP", "wb", FT_SAVE);
     fwrite(Data, sizeof(struct Players), 1, undo);
     fclose(undo);
 
@@ -1255,7 +1278,7 @@ char HPurc(char player_index)
         GetMouse();
 
         if ((x >= 279 && y >= 90 && x <= 302 && y <= 100 && mousebuttons > 0) || key == 'F') {
-            const Equipment& program =
+            Equipment &program =
                 HardwareProgram(player_index, hardware, unit);
 
             if (program.Damage &&
@@ -1274,11 +1297,9 @@ char HPurc(char player_index)
         } else if ((x > 266 && y > 164 && x < 314 && y < 174 && mousebuttons > 0) || key == 'Z') {
             InBox(266, 164, 314, 174);
             WaitForMouseUp();
-        
-            FILE* undo = sOpen("UNDO.TMP", "rb", FT_SAVE);
-            fread(Data, sizeof(struct Players), 1, undo);
+            undo = sOpen("UNDO.TMP", "rb", FT_SAVE);
+//            fread(Data, sizeof(struct Players), 1, undo);
             fclose(undo);
-        
             ShowUnit(hardware, unit, player_index);
             OutBox(266, 164, 314, 174);
             key = 0;
@@ -1438,7 +1459,7 @@ char HPurc(char player_index)
             hardware_buttons.drawButtons(hardware);
 
             // Just Added stuff by mike
-            FILE* undo = sOpen("UNDO.TMP", "wb", FT_SAVE);
+            undo = sOpen("UNDO.TMP", "wb", FT_SAVE);
             fwrite(Data, sizeof(struct Players), 1, undo);
             fclose(undo);
 
@@ -1475,11 +1496,16 @@ char HPurc(char player_index)
  * @param player_index player doing the purchase
  */
 
-void BuyUnit(char category, char unit, char player_index)
+void
+BuyUnit(char category, char unit, char player_index)
 {
+    short n1, n2, n3, n4, n5, n6, n7;
+    char new_program = 0;
+    int Init_Cost, Unit_Cost;
+    Equipment *unit_ptr = NULL;
+
     assert(PROBE_HARDWARE <= category && category <= MISC_HARDWARE);
 
-    Equipment* unit_ptr = nullptr;
     switch (category) {
     case PROBE_HARDWARE:
         assert(PROBE_HW_ORBITAL <= unit && unit <= PROBE_HW_LUNAR);
@@ -1502,8 +1528,8 @@ void BuyUnit(char category, char unit, char player_index)
         break;
     }
 
-    int Init_Cost = unit_ptr->InitCost;
-    int Unit_Cost = unit_ptr->UnitCost;
+    Init_Cost = unit_ptr->InitCost;
+    Unit_Cost = unit_ptr->UnitCost;
 
     /* this is the "half-off" sale */
     if (Data->P[player_index].TurnOnly == 3) {
@@ -1520,23 +1546,19 @@ void BuyUnit(char category, char unit, char player_index)
     if (unit_ptr->Num == -1 && Data->P[player_index].Cash >= Init_Cost) {
         Data->P[player_index].Cash -= Init_Cost;
         unit_ptr->Num = 1;
+        new_program = 1;
         Data->P[player_index].Spend[0][category] += Init_Cost;
-    } else { // old program
-        if ((unit_ptr->Num >= 0 && unit_ptr->Num < 6)
-            && Data->P[player_index].Cash >= Unit_Cost) {
-            Data->P[player_index].Cash -= Unit_Cost;
-            unit_ptr->Num += 1;
-            Data->P[player_index].Spend[0][category] += Unit_Cost;
-        }
-        ShowUnit(category, unit, player_index);
-        return;
+    } else if (unit_ptr->Num >= 0 && unit_ptr->Num < 6
+               && Data->P[player_index].Cash >= Unit_Cost) {
+        Data->P[player_index].Cash -= Unit_Cost;
+        unit_ptr->Num += 1;
+        Data->P[player_index].Spend[0][category] += Unit_Cost;
     }
 
     float tt = 0.0f;  // initialize variable for tech transfer
 
     /* compute technology transfer for Probe category */
-    short n1, n2, n3, n4, n5, n6, n7;
-    if (category == PROBE_HARDWARE) {
+    if (new_program && category == PROBE_HARDWARE) {
         n1 = Data->P[player_index].Probe[PROBE_HW_ORBITAL].Safety;
         n2 = Data->P[player_index].Probe[PROBE_HW_INTERPLANETARY].Safety;
         n3 = Data->P[player_index].Probe[PROBE_HW_LUNAR].Safety;
@@ -1610,7 +1632,7 @@ void BuyUnit(char category, char unit, char player_index)
     }
 
     /* compute technology transfer for Rocket category */
-    if (category == ROCKET_HARDWARE) {
+    if (new_program && category == ROCKET_HARDWARE) {
         n1 = Data->P[player_index].Rocket[ROCKET_HW_ONE_STAGE].Safety;  /* One-stage - A    */
         n2 = Data->P[player_index].Rocket[ROCKET_HW_TWO_STAGE].Safety;  /* Two-stage - B    */
         n3 = Data->P[player_index].Rocket[ROCKET_HW_THREE_STAGE].Safety;  /* Three-stage - C   */
@@ -1840,7 +1862,7 @@ void BuyUnit(char category, char unit, char player_index)
     }
 
     /* compute technology transfer for Manned category */
-    if (category == MANNED_HARDWARE) {
+    if (new_program && category == MANNED_HARDWARE) {
         n1 = Data->P[player_index].Manned[MANNED_HW_ONE_MAN_CAPSULE].Safety;  /* One-person - a        */
         n2 = Data->P[player_index].Manned[MANNED_HW_TWO_MAN_CAPSULE].Safety;  /* Two-person - b        */
         n3 = Data->P[player_index].Manned[MANNED_HW_THREE_MAN_CAPSULE].Safety;  /* Three-person - c      */
@@ -2052,7 +2074,7 @@ void BuyUnit(char category, char unit, char player_index)
     }
 
     /* compute technology transfer for Misc category */
-    if (category == MISC_HARDWARE) {
+    if (new_program && category == MISC_HARDWARE) {
         n1 = Data->P[player_index].Rocket[ROCKET_HW_ONE_STAGE].Safety; /* One - A    */
         n2 = Data->P[player_index].Rocket[ROCKET_HW_TWO_STAGE].Safety; /* Two - B    */
 
@@ -2114,9 +2136,12 @@ void BuyUnit(char category, char unit, char player_index)
     }
 
     /* update safety that could have changed */
-    unit_ptr->Base = unit_ptr->Safety;
+    if (new_program) {
+        unit_ptr->Base = unit_ptr->Safety;
+    }
 
     ShowUnit(category, unit, player_index);
+    return;
 }
 
 
@@ -2125,56 +2150,45 @@ void BuyUnit(char category, char unit, char player_index)
  */
 void RDHelpWarnings(int plr)
 {
-    static bool WarningLMShown = false;
-    static bool WarningDMShown = false;
-    static bool WarningKickerShown = false;
-    static bool WarningVABShown = false;
-
     // These two warnings are here on the principle that normally
     // you would have both DMs and EVA suits before prototyping
     // your lunar landing craft.
 
     // Warn player that they haven't started EVA suits yet,
     // though they have an LM or Kicker-C or direct ascent capsule  -LPB
-    if (! WarningLMShown 
-        && Data->P[plr].Misc[MISC_HW_EVA_SUITS].Num < 0 
-        && (  Data->P[plr].Manned[MANNED_HW_FOUR_MAN_CAPSULE].Num >= 0 
-           || Data->P[plr].Manned[MANNED_HW_TWO_MAN_MODULE].Num >= 0 
-           || Data->P[plr].Manned[MANNED_HW_ONE_MAN_MODULE].Num >= 0 
-           || Data->P[plr].Misc[MISC_HW_KICKER_C].Num >= 0)
-        ) {
+    if (WarningLMShown < 1 && Data->P[plr].Misc[MISC_HW_EVA_SUITS].Num < 0 &&
+        (Data->P[plr].Manned[MANNED_HW_FOUR_MAN_CAPSULE].Num >= 0 ||
+         Data->P[plr].Manned[MANNED_HW_TWO_MAN_MODULE].Num >= 0 ||
+         Data->P[plr].Manned[MANNED_HW_ONE_MAN_MODULE].Num >= 0 ||
+         Data->P[plr].Misc[MISC_HW_KICKER_C].Num >= 0)) {
         Help("i046");
-        WarningLMShown = true;
+        WarningLMShown = 1;
     }
 
     // Warn player that they haven't started DMs yet, though they
     // have an LM or Kicker-C  -LPB
-    if (! WarningDMShown 
-        && Data->P[plr].Misc[MISC_HW_DOCKING_MODULE].Num < 0 
-        && (  Data->P[plr].Manned[MANNED_HW_TWO_MAN_MODULE].Num >= 0 
-           || Data->P[plr].Manned[MANNED_HW_ONE_MAN_MODULE].Num >= 0 
-           || Data->P[plr].Misc[MISC_HW_KICKER_C].Num >= 0)
-        ) {
+    if (WarningDMShown < 1 && Data->P[plr].Misc[MISC_HW_DOCKING_MODULE].Num < 0 &&
+        (Data->P[plr].Manned[MANNED_HW_TWO_MAN_MODULE].Num >= 0 ||
+         Data->P[plr].Manned[MANNED_HW_ONE_MAN_MODULE].Num >= 0 ||
+         Data->P[plr].Misc[MISC_HW_KICKER_C].Num >= 0)) {
         Help("i047");
-        WarningDMShown = true;
+        WarningDMShown = 1;
     }
 
     // Warn player that they haven't started a kicker yet,
     // though they have Gemini/Voskhod or a minishuttle fully researched
     // -LPB
-    if (! WarningKickerShown
-        && Data->P[plr].Misc[MISC_HW_KICKER_A].Num < 0
-        && Data->P[plr].Misc[MISC_HW_KICKER_B].Num < 0
-        && Data->P[plr].Manned[MANNED_HW_THREE_MAN_CAPSULE].Num < 0
-        && (   Data->P[plr].Manned[MANNED_HW_TWO_MAN_CAPSULE].Safety
-               >= Data->P[plr].Manned[MANNED_HW_TWO_MAN_CAPSULE].MaxRD
-            || Data->P[plr].Manned[MANNED_HW_MINISHUTTLE].Safety
-               >=Data->P[plr].Manned[MANNED_HW_MINISHUTTLE].MaxRD)
-        && (Data->P[plr].Manned[MANNED_HW_TWO_MAN_CAPSULE].Safety > 85
-            || Data->P[plr].Manned[MANNED_HW_MINISHUTTLE].Safety > 88)
-        ) {
+    if (WarningKickerShown < 1 && (Data->P[plr].Misc[MISC_HW_KICKER_A].Num < 0 &&
+         Data->P[plr].Misc[MISC_HW_KICKER_B].Num < 0) &&
+        Data->P[plr].Manned[MANNED_HW_THREE_MAN_CAPSULE].Num < 0 &&
+        (Data->P[plr].Manned[MANNED_HW_TWO_MAN_CAPSULE].Safety >=
+         Data->P[plr].Manned[MANNED_HW_TWO_MAN_CAPSULE].MaxRD ||
+         Data->P[plr].Manned[MANNED_HW_MINISHUTTLE].Safety >=
+         Data->P[plr].Manned[MANNED_HW_MINISHUTTLE].MaxRD) &&
+        (Data->P[plr].Manned[MANNED_HW_TWO_MAN_CAPSULE].Safety > 85 ||
+         Data->P[plr].Manned[MANNED_HW_MINISHUTTLE].Safety > 88)) {
         Help("i048");
-        WarningKickerShown = true;
+        WarningKickerShown = 1;
     }
 
     // Warn player with little money that they should visit the VAB/VIB
@@ -2189,15 +2203,14 @@ void RDHelpWarnings(int plr)
         chkAmt = 20;
     }
 
-    if (! WarningVABShown
-        && Data->P[plr].Cash <= chkAmt) {
-        for (auto& mis : Data->P[plr].Mission) {
-            if (mis.MissionCode <= 0) continue;
-            if (mis.Hard[Mission_PrimaryBooster] != 0) continue;
-            
-            Help("i173");
-            WarningVABShown = true;
-            break;
+    if (WarningVABShown < 1 && Data->P[plr].Cash <= chkAmt) {
+        for (int i = 0; i < MAX_MISSIONS; i++) {
+            if (Data->P[plr].Mission[i].MissionCode > 0 &&
+                Data->P[plr].Mission[i].Hard[Mission_PrimaryBooster] == 0) {
+                Help("i173");
+                WarningVABShown = 1;
+                break;
+            }
         }
     }
 }

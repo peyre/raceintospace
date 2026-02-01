@@ -193,7 +193,7 @@ void LegacyLoad(SaveFileHdr header, FILE *fin, size_t fileLength)
 {
     LEGACY_REPLAY *load_buffer = NULL;
     uint16_t dataSize, compSize;
-    int i, j;
+    int i;
     const int legacySize = 38866;
     struct LegacyPlayers *legacyData;
 
@@ -221,7 +221,7 @@ void LegacyLoad(SaveFileHdr header, FILE *fin, size_t fileLength)
     }
 
     size_t readLen = compSize;
-    load_buffer = (LEGACY_REPLAY *)malloc(readLen);
+//    load_buffer = (LEGACY_REPLAY *)malloc(readLen);
     fread(load_buffer, 1, readLen, fin);
     RLED((char *) load_buffer, (char *)legacyData, compSize);
     free(load_buffer);
@@ -288,7 +288,7 @@ void LegacyLoad(SaveFileHdr header, FILE *fin, size_t fileLength)
 
     // Read the Event Data
     load_buffer = (LEGACY_REPLAY *)malloc(eventSize);
-    fread(load_buffer, 1, eventSize, fin);
+//    fread(load_buffer, 1, eventSize, fin);
     fclose(fin);
 
     if (endianSwap) {

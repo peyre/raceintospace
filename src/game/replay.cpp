@@ -168,8 +168,8 @@ void DispBaby(int x, int y, int loc, char neww)
         p.pal[off * 3 + i] = 0;
     }
 
-    fread(&p.pal[off * 3], 48, 1, fin);
-    fread(boob.pixels(), 1564, 1, fin);
+//    fread(&p.pal[off * 3], 48, 1, fin);
+//    fread(boob.pixels(), 1564, 1, fin);
     fclose(fin);
 
     for (int i = 0; i < 782; i++) {

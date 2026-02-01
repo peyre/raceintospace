@@ -265,8 +265,8 @@ void SpotLoad(int animationIndex)
 
     char pathName[20];
     SeekAnimation(animationIndex);  // go to correct path
-    fread(&pathName, sizeof pathName, 1, sFin);    // Animation name
-    fread(&stepCount, sizeof stepCount, 1, sFin);  // # of path parts
+//    fread(&pathName, sizeof pathName, 1, sFin);    // Animation name
+//    fread(&stepCount, sizeof stepCount, 1, sFin);  // # of path parts
     Swap16bit(stepCount);
     pLoc = ftell(sFin);
 
@@ -366,12 +366,12 @@ void AdvanceFrame()
 
     SeekCelData(sPath.Image);     // point to next image
     fread(&sImg.w, sizeof(sImg.w), 1, sFin);  // Get Cel dimensions
-    fread(&sImg.h, sizeof(sImg.h), 1, sFin);
+//    fread(&sImg.h, sizeof(sImg.h), 1, sFin);
 
     // Read in the raw image data
     display::LegacySurface *celImage =
         new display::LegacySurface(sImg.w, sImg.h);
-    fread(celImage->pixels(), sImg.w * sImg.h, 1, sFin);
+//    fread(celImage->pixels(), sImg.w * sImg.h, 1, sFin);
 
     if (sPath.Scale != 1.0) {
         sImg.w = (int)((float) sImg.w * sPath.Scale);
@@ -549,7 +549,7 @@ void SeekAnimation(int index)
 {
     uint32_t animOffset;
     fseek(sFin, index * (sizeof animOffset) + (mainHeader.pOff), SEEK_SET);
-    fread(&animOffset, sizeof animOffset, 1, sFin);
+//    fread(&animOffset, sizeof animOffset, 1, sFin);
     Swap32bit(animOffset);
     fseek(sFin, animOffset, SEEK_SET);
 }

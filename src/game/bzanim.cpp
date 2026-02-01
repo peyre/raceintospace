@@ -228,7 +228,7 @@ size_t ImportAnimType(FILE *fin, struct AnimType &target)
  */
 size_t ImportBlockHead(FILE *fin, struct BlockHead &target)
 {
-    int32_t position = ftell(fin);
+//    int32_t position = ftell(fin);
     bool success =
         fread(&target.cType, sizeof(target.cType), 1, fin) &&
         fread(&target.fSize, sizeof(target.fSize), 1, fin);
@@ -259,7 +259,7 @@ uint8_t *ReadFrame(FILE *fin, int width, int height)
 
     assert(header.fSize < 128 * 1024);
     uint8_t *buf = (uint8_t *)alloca(header.fSize);
-    fread(buf, header.fSize, 1, fin);
+//    fread(buf, header.fSize, 1, fin);
 
     uint8_t *frame = new uint8_t[width * height];
 
@@ -339,9 +339,9 @@ void SeekAnimation(FILE *fin, const char *name)
     // TODO: Add a check to make sure fname is found in file, else
     // this becomes an infinite loop.
     do {
-        fread(&indexEntry.ID[0], sizeof(indexEntry.ID), 1, fin);
-        fread(&indexEntry.offset, sizeof(indexEntry.offset), 1, fin);
-        fread(&indexEntry.size, sizeof(indexEntry.size), 1, fin);
+//        fread(&indexEntry.ID[0], sizeof(indexEntry.ID), 1, fin);
+//        fread(&indexEntry.offset, sizeof(indexEntry.offset), 1, fin);
+//        fread(&indexEntry.size, sizeof(indexEntry.size), 1, fin);
     } while (strncmp(indexEntry.ID, name, 4) != 0);
 
     Swap32bit(indexEntry.offset);
