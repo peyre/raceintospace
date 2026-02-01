@@ -1,0 +1,402 @@
+/*
+    Copyright (C) 2007 Krzysztof Kosciuszkiewicz
+    Copyright (C) 2005 Michael K. McCarty & Fritz Bronner
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+/** \file fs.c
+ * Implementation of filesystem access functions.
+ *
+ */
+
+#include "fs.h"
+
+#include <cassert>
+#include <cctype>
+#include <cerrno>
+
+#include <sys/stat.h>
+#include <physfs.h>
+
+#include "Buzz_inc.h"
+#include "options.h"
+#include "pace.h"
+#include "raceintospace_config.h"
+#include "utils.h"
+
+/** path separator setup */
+#ifndef PATHSEP
+# if CONFIG_WIN32
+#  define PATHSEP '\\'
+# else
+#  define PATHSEP '/'
+# endif
+#endif
+
+/** see how do we call mkdir */
+#ifdef HAVE_MKDIR
+# ifdef MKDIR_TAKES_ONE_ARG
+/* MinGW32 */
+#  define mkdir(a, b) mkdir(a)
+# endif
+#else
+# ifdef HAVE__MKDIR
+/* plain Windows 32 */
+#  define mkdir(a, b) _mkdir(a)
+# else
+#  error "Don't know how to create a directory on this system."
+# endif
+#endif
+
+// dirent.h is a platform-specific include on Windows
+#include <dirent.h>
+#define NAMLEN(dirent) strlen((dirent)->d_name)
+
+LOG_DEFAULT_CATEGORY(filesys)
+
+//static DIR *save_dir;
+
+/** used internally to find and open files */
+typedef struct file {
+    FILE *handle;   /**< standard filehandle */
+    char *path;     /**< path to file */
+} file;
+
+/**
+ * gamedata & savedata access functions
+ */
+
+void
+fix_pathsep(char *name)
+{
+}
+
+static FILE *
+try_fopen(const char *fname, const char *mode)
+{
+    FILE *fp = NULL;
+    assert(fname);
+    assert(mode);
+    TRACE3("trying to open `%s' (mode %s)", fname, mode);
+
+    fp = fopen(fname, mode);
+
+    /** \todo ENOENT is POSIX, ANSI equivalent for file does not exist??? */
+    if (!fp && errno != ENOENT) {
+        int esave = errno;
+        WARNING3("can't access file `%s': %s", fname, strerror(errno));
+        errno = esave;
+    }
+
+    return fp;
+}
+
+/** try to open base/xxx/name for xxx = arg4 ... */
+static file
+s_open_helper(const char *base, const char *name, const char *mode, ...)
+{
+    FILE *fh = NULL;
+    file f = {NULL, NULL};
+    int serrno;
+    char *p = NULL;
+    char *cooked = (char *)xmalloc(1024);
+    size_t len = 1024, len2 = 0;
+    size_t len_base = strlen(base), len_name = strlen(name);
+    va_list ap;
+
+    assert(base);
+    assert(name);
+    assert(mode);
+
+    va_start(ap, mode);
+
+    for (p = va_arg(ap, char *); p; p = va_arg(ap, char *)) {
+        char *s = NULL;
+        int was_upper = 0;
+        size_t len_p = strlen(p);
+
+        len2 = len_base + len_name + len_p + 3;
+
+        if (len2 > len) {
+            cooked = (char *)xrealloc(cooked, (len = len2));
+        }
+
+        if (strlen(p)) {
+            snprintf(cooked, len, "%s/%s/%s", base, p, name);
+        } else {
+            snprintf(cooked, len, "%s/%s", base, name);
+        }
+
+        fix_pathsep(cooked);
+
+        fh = try_fopen(cooked, mode);
+
+        if (fh) {
+            break;
+        }
+
+        /* try lowercase version */
+        for (s = cooked + len_base + len_p + 2; *s; ++s) {
+            if (isupper(*s)) {
+                was_upper |= 1;
+                *s = tolower(*s);
+            }
+        }
+
+        if (was_upper) {
+            fh = try_fopen(cooked, mode);
+        }
+
+        if (fh) {
+            break;
+        }
+    }
+
+    serrno = errno;
+    va_end(ap);
+
+    if (fh) {
+        f.handle = fh;
+        f.path = cooked;
+    } else {
+        free(cooked);
+    }
+
+    errno = serrno;
+    return f;
+}
+
+/** tries to find a file and open it
+ *
+ * The function knows about the relative
+ * position of certain filetypes. It retrieves
+ * the position savegamedir and gamedatadir from
+ * options.
+ *
+ * \param name Name of the file to open
+ * \param mode mode to file should be opened in
+ * \param type Type of the file eg. FT_SAVE, FT_DATA, ...
+ *
+ * \return fileinformation including opened filehandle
+ */
+static file
+try_find_file(const char *name, const char *mode, int type)
+{
+    file f = {NULL, NULL};
+    char *gd = options.dir_gamedata;
+    char *sd = options.dir_savegame;
+    char *where = "";
+    const char *newmode = mode;
+
+    TRACE2("looking for file `%s'", name);
+
+    /** \note allows write access only to savegame files */
+    if (type != FT_SAVE) {
+        if (strchr(mode, 'w')
+            || strchr(mode, 'a')
+            || strncmp(mode, "r+", 2) == 0) {
+            char *inner_newmode;
+
+            if (strchr(mode, 'b')) {
+                inner_newmode = "rb";
+            } else {
+                inner_newmode = "r";
+            }
+
+            DEBUG3("access mode changed from `%s' to `%s'", mode, inner_newmode);
+        }
+    }
+
+    switch (type) {
+    case FT_DATA:
+        f = s_open_helper(gd, name, newmode,
+                          "gamedata",
+                          NULL);
+        where = "game data";
+        break;
+
+    case FT_SAVE:
+    case FT_SAVE_CHECK:
+        f = s_open_helper(sd, name, newmode,
+                          "",
+                          NULL);
+        where = "savegame";
+        break;
+
+    case FT_AUDIO:
+        f = s_open_helper(gd, name, newmode,
+                          "audio/mission",
+                          "audio/music",
+                          "audio/news",
+                          "audio/sounds",
+                          NULL);
+        where = "audio";
+        break;
+
+    case FT_VIDEO:
+        f = s_open_helper(gd, name, newmode,
+                          "video/mission",
+                          "video/news",
+                          "video/training",
+                          NULL);
+        where = "video";
+        break;
+
+    case FT_IMAGE:
+        f = s_open_helper(gd, name, newmode,
+                          "images",
+                          NULL);
+        where = "image";
+        break;
+
+    case FT_MIDI:
+        f = s_open_helper(gd, name, newmode,
+                          "audio/midi",
+                          "midi",
+                          "audio/music",
+                          NULL);
+        where = "midi";
+        break;
+
+    default:
+        assert("Unknown FT_* specified");
+    }
+
+    if (f.handle == NULL && type != FT_SAVE_CHECK) {
+        int serrno = errno;
+        WARNING3("can't find file `%s' in %s dir(s)", name, where);
+        errno = serrno;
+    }
+
+    return f;
+}
+
+FILE *
+sOpen(const char *name, const char *mode, int type)
+{
+    file f = try_find_file(name, mode, type);
+
+    if (f.path) {
+        INFO3("opened file `%s' (mode %s)", f.path, mode);
+        free(f.path);
+    }
+
+    return f.handle;
+}
+
+/** Find and open file, if found return full path.
+ */
+std::string locate_file(const char *name, int type)
+{
+    file f = try_find_file(name, "rb", type);
+
+    if (f.handle) {
+        INFO2("found file `%s'", f.path);
+        fclose(f.handle);
+    }
+
+    if (f.path != NULL) {
+        std::string path(f.path);
+        free(f.path);
+        return path;
+    }
+
+    return "";
+}
+
+int
+remove_savedat(const char *name)
+{
+    size_t len_base = strlen(options.dir_savegame) + 1;
+    size_t len_name = strlen(name) + 1;
+    char *cooked = (char *)xmalloc(len_base + len_name);
+    int rv = 0;
+
+    snprintf(cooked, len_base + len_name, "%s/%s",
+             options.dir_savegame, name);
+    INFO2("removing save game file `%s'", cooked);
+    fix_pathsep(cooked);
+    rv = remove(cooked);
+
+    if (rv < 0 && errno != ENOENT)
+        WARNING3("failed to remove save game file `%s': %s",
+                 cooked, strerror(errno));
+
+    free(cooked);
+    return rv;
+}
+
+FILE *
+open_gamedat(const char *name)
+{
+    return sOpen(name, "rb", FT_DATA);
+}
+
+FILE *
+open_savedat(const char *name, const char *mode)
+{
+    return sOpen(name, mode, FT_SAVE_CHECK);
+}
+
+char * load_gamedata(const char *name)
+{
+	// Deserialize in vector data
+	std::vector<uint8_t> data;
+	DESERIALIZE_JSON_FILE(&data, locate_file(name, FT_DATA));
+	
+	// Transform vector data in char pointer p
+	char* p = new char[data.size() + 1]; // +1 for null char
+	std::copy(data.begin(), data.end(), p);
+    p[data.size()] = '\0'; // Add null
+	
+	return p;
+}
+
+
+/** Create the savegame directory
+ *
+ * The directory will be created as defined in options.dir_savegame.
+ *
+ * \note The access will be set to 0777 (worldwritable)
+ *
+ * \return -1 on error
+ * \return 0 on success
+ */
+int
+create_save_dir(void)
+{
+    if (mkdir(options.dir_savegame, 0777) < 0 && errno != EEXIST) {
+        WARNING3("can't create savegame directory `%s': %s",
+                 options.dir_savegame, strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
+
+int
+PhysFsEnumerator::enumerate()
+{
+    return PHYSFS_enumerate(this->m_name.c_str(), this->enumerate_callback, this);
+}
+
+PHYSFS_EnumerateCallbackResult
+PhysFsEnumerator::enumerate_callback(void *data, const char *origdir, const char *fname)
+{
+    PhysFsEnumerator *self = static_cast<PhysFsEnumerator *>(data);
+    return self->onItem(origdir, fname);
+}
+
+/* vim: set noet ts=4 sw=4 tw=77: */
